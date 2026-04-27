@@ -1,43 +1,34 @@
-import express from "express";
 import axios from "axios";
-import dotenv from "dotenv";
 
-dotenv.config();
+export default async function handler(req, res) {
+  const shop = process.env.SHOP;
+  const clientId = process.env.CLIENT_ID;
+  const clientSecret = process.env.CLIENT_SECRET;
 
-const app = express();
+  // 👉 INSTALL ROUTE
+  if (!req.query.code) {
+    const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${clientId}&scope=read_products&redirect_uri=https://${req.headers.host}/api/index`;
 
-const { SHOP, CLIENT_ID, CLIENT_SECRET, REDIRECT_URI } = process.env;
+    return res.redirect(installUrl);
+  }
 
-// 👉 Step 1: Install route
-app.get("/", (req, res) => {
-  const installUrl = `https://${SHOP}/admin/oauth/authorize?client_id=${CLIENT_ID}&scope=read_products&redirect_uri=${REDIRECT_URI}`;
-  res.redirect(installUrl);
-});
-
-// 👉 Step 2: Callback route
-app.get("/callback", async (req, res) => {
+  // 👉 CALLBACK ROUTE
   try {
-    const { code } = req.query;
-
     const response = await axios.post(
-      `https://${SHOP}/admin/oauth/access_token`,
+      `https://${shop}/admin/oauth/access_token`,
       {
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: req.query.code,
       }
     );
 
-    res.send(`
-      <h2>✅ App Installed Successfully</h2>
+    return res.send(`
+      <h2>App Installed ✅</h2>
       <p><b>Access Token:</b></p>
       <code>${response.data.access_token}</code>
     `);
   } catch (err) {
-    res.send("Error generating token");
+    return res.status(500).send("Error generating token");
   }
-});
-
-app.listen(3000, () => {
-  console.log("App running on port 3000");
-});
+}
